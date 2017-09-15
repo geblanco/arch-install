@@ -364,7 +364,7 @@ configure() {
   rm -rf /_custom_config_
 }
 
-set -ex
+set -e
 
 if [ "$1" == "chroot" ]
 then
