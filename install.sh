@@ -60,6 +60,11 @@ partition_drives() {
   		mkpart ext4 "/home" 1 500G
 }
 
+erase_drives() {
+  local $erase="$1"; shift
+  parted -s $erase rm all
+}
+
 format_filesystems() {
 	local boot_dev="$1"; shift
 	local root_dev="$1"; shift
@@ -77,11 +82,15 @@ mount_filesystems() {
   local boot_dev="$1"; shift
 	local root_dev="$1"; shift
 	local swap_dev="$1"; shift
+  local home_dev="$1"; shift
 
   mount "$root_dev" /mnt
   mkdir /mnt/boot
   mount "$boot_dev" /mnt/boot
   swapon "$swap_dev"
+
+  mkdir /mnt/home
+  mount "$home_dev" /mnt/home
 }
 
 unmount_filesystems() {
@@ -269,14 +278,18 @@ setup() {
 	echo 'Setting time'
 	timedatectl set-ntp true
 
+  echo 'Erasing disks'
+  erase_drives "$DRIVE"
+  erase_drives "$USER_DRIVE"
+
 	echo 'Partitioning disks'
-	partition_drives "$DIRVE" "$USER_DRIVE"
+	partition_drives "$DRIVE" "$USER_DRIVE"
 
 	echo 'Formatting filesystems'
 	format_filesystems "$boot_dev" "$root_dev" "$swap_dev" "$home_dev"
 
 	echo 'Mounting filesystems'
-	mount_filesystems "$boot_dev" "$root_dev" "$swap_dev"
+	mount_filesystems "$boot_dev" "$root_dev" "$swap_dev" "$home_dev"
 
 	echo 'Installing base system'
   install_base
