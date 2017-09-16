@@ -61,7 +61,7 @@ partition_drives() {
 }
 
 erase_drives() {
-  local $erase="$1"; shift
+  local erase="$1"; shift
   parted -s $erase rm all
 }
 
@@ -270,17 +270,19 @@ create_user() {
 }
 
 setup() {
-	local boot_dev="$1"1
-	local root_dev="$1"2
-	local swap_dev="$1"3
-	local home_dev="$2"1
+	local boot_dev="$DRIVE"1
+	local root_dev="$DRIVE"2
+	local swap_dev="$DRIVE"3
+	local home_dev="$USER_DRIVE"1
 
 	echo 'Setting time'
 	timedatectl set-ntp true
 
   echo 'Erasing disks'
-  erase_drives "$DRIVE"
-  erase_drives "$USER_DRIVE"
+  erase_drives "$boot_dev"
+  erase_drives "$root_dev"
+  erase_drives "$swap_dev"
+  erase_drives "$home_dev"
 
 	echo 'Partitioning disks'
 	partition_drives "$DRIVE" "$USER_DRIVE"
