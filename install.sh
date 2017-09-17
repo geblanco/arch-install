@@ -117,27 +117,35 @@ gen_fstab() {
 	genfstab -U /mnt >> /mnt/etc/fstab
 }
 
-install_packages() {
-	local packages=''
+install_yaourt(){
+  echo 'Installing needed packages...'
+  pacman -S --needed --noconfirm git wget yajl
+  if [[ -d __build ]]; then
+    rm -rf __build
+  fi
+  mkdir __build
+  cd __build
+  git clone https://aur.archlinux.org/package-query.git
+  cd package-query/
+  makepkg -si
+  cd ..
+  git clone https://aur.archlinux.org/yaourt.git
+  cd yaourt/
+  makepkg -si
+  cd ../..
+  rm -rf __build
+}
 
-	# General utilities/libraries
-	packages+=' rsync sudo unrar unzip wget curl zip zsh oh-my-zsh-git cargo arandr docker gnome-disk-utility gnu-netcat gparted nmap numlockx scrot yaourt libnotify xfce4-terminal xfce4-notifyd xfce4-screenshooter thunar thunar-archive-plugin thunar-media-tags-plugin thunar-volman'
-	# Java stuff
-	packages+=' icedtea-web-java7 jdk7-openjdk jre7-openjdk'
-	# Office
-	packages+=' wps-office galculator-gtk2 gimp gitbook-editor'
-	# Fonts
-	packages+=' cantarell-fonts ttf-dejavu ttf-liberation'
-	# On Intel processors
-	packages+=' intel-ucode'
-	# Dev
-	packages+=' git gitkraken go gradle gulp vim sublime-text-dev python2 python2-pip python python-pip'
-	# misc
-	packages+=' filezilla firefox google-chrome gtk-recordmydesktop okular-git spotify synergy telegram-desktop viewnior virtualbox youtube-dl mendeleydesktop stremio-legacy vlc'
-	# ui
-	packages+=' feh i3-wm lxappearance lxdm lxdm-themes vertex-maia-icon-themes vertex-maia-themes polybar'
-	
-	if [ "$VIDEO_DRIVER" = "i915" ]
+install_packages() {
+  cd _custom_config_
+  # create list of software not found in official repos
+  comm -23 <(sort software.txt) <(pacman -Ssq | sort) >> software_not_installed.txt
+  # create list of installed software
+  comm -23 <(sort software.txt) <(sort software_not_installed.txt) >> software_installed.txt
+  
+  local packages=$(cat software_installed.txt | tr "\n" " ")
+
+  if [ "$VIDEO_DRIVER" = "i915" ]
   then
       packages+=' xf86-video-intel' #libva-intel-driver
   elif [ "$VIDEO_DRIVER" = "nouveau" ]
@@ -152,15 +160,16 @@ install_packages() {
   fi
 
   pacman -Sy --noconfirm $packages
+  cd ..
 }
 
 install_aur_packages() {
-	mkdir /foo
-	export TMPDIR=/foo
+  cd _custom_config_
+  # install software not in official repos
+  local packages=$(cat software_not_installed.txt | tr "\n" " ")
 	# android, install by AUR
-	yaourt -S --noconfirm android-platform android-sdk-build-tools android-tools android-udev
-	unset TMPDIR
-	rm -rf /foo
+	yaourt -S --noconfirm $packages
+  cd ..
 }
 
 clean_packages() {
@@ -218,13 +227,10 @@ set_modules_load() {
   echo 'microcode' > /etc/modules-load.d/intel-ucode.conf
 }
 
-set_syslinux() {
-	cp /_custom_config_/syslinux.cfg /boot/syslinux/syslinux.cfg
-}
-
-set_sudoers() {
-  cp /_custom_config_/sudoers /etc/sudoers
-  chmod 440 /etc/sudoers
+set_systemd() {
+  bootctl --path=/boot install
+  cp /_custom_config_/loader.conf /boot/loader/loader.conf
+  cp /_custom_config_/arch.conf /boot/loader/entries/arch.conf
 }
 
 set_lxdm() {
@@ -271,13 +277,14 @@ create_user() {
 }
 
 setup() {
-	local boot_dev="$DRIVE"1
-	local root_dev="$DRIVE"2
-	local swap_dev="$DRIVE"3
-	local home_dev="$USER_DRIVE"1
 
-	echo 'Setting time'
-	timedatectl set-ntp true
+  local boot_dev="$DRIVE"1
+  local root_dev="$DRIVE"2
+  local swap_dev="$DRIVE"3
+  local home_dev="$USER_DRIVE"1
+
+  echo 'Setting time'
+  timedatectl set-ntp true
 
   echo 'Erasing disks'
   erase_drives "$DRIVE" 1
@@ -285,28 +292,28 @@ setup() {
   erase_drives "$DRIVE" 3
   erase_drives "$USER_DRIVE" 1
 
-	echo 'Partitioning disks'
-	partition_drives "$DRIVE" "$USER_DRIVE"
+  echo 'Partitioning disks'
+  partition_drives "$DRIVE" "$USER_DRIVE"
 
-	echo 'Formatting filesystems'
-	format_filesystems "$boot_dev" "$root_dev" "$swap_dev" "$home_dev"
+  echo 'Formatting filesystems'
+  format_filesystems "$boot_dev" "$root_dev" "$swap_dev" "$home_dev"
 
-	echo 'Mounting filesystems'
-	mount_filesystems "$boot_dev" "$root_dev" "$swap_dev" "$home_dev"
+  echo 'Mounting filesystems'
+  mount_filesystems "$boot_dev" "$root_dev" "$swap_dev" "$home_dev"
 
-	echo 'Installing base system'
+  echo 'Installing base system'
   install_base
 
   echo 'Generating fstab'
   gen_fstab
 
   echo 'Chrooting into installed system to continue setup...'
-  cp /deploy/setup.sh /mnt/setup.sh
+  cp /setup.sh /mnt/setup.sh
   cp -r /deploy/cfgs /mnt/_custom_config_
 
   arch-chroot /mnt ./setup.sh chroot
 
-  if [ -f /mnt/setup.sh ]
+  if [ ! -f /mnt/the_end ]
   then
     echo 'ERROR: Something failed inside the chroot, not unmounting filesystems so you can investigate.'
     echo 'Make sure you unmount everything before you try to run this script again.'
@@ -314,19 +321,18 @@ setup() {
     echo 'Unmounting filesystems'
     unmount_filesystems "$swap_dev"
     echo 'Done! Reboot system.'
-	fi
+  fi
 }
 
 configure() {
-	echo 'Installing additional packages'
+
+
+  echo 'Installing additional packages'
   install_packages
 
-  echo 'Installing AUR packages'
-  install_aur_packages
-
   echo 'Clearing package tarballs'
-	clean_packages
-
+  clean_packages
+  
 	echo 'Setting hostname'
   set_hostname "$HOSTNAME"
 
@@ -342,18 +348,15 @@ configure() {
   echo 'Setting hosts file'
 	set_hosts "$HOSTNAME"
 
-	# set_modules_load
+	set_modules_load
 
-	# echo 'Configuring initial ramdisk'
-  # mkinitcpio -p linux
+  echo 'Configuring initial ramdisk'
+  mkinitcpio -p linux
 
   echo 'Configuring bootloader'
-  set_syslinux
+  set_systemd
 
-  echo 'Configuring sudo'
-  # set_sudoers
-
-  echo 'Configuring slim'
+  # echo 'Configuring lxdm'
   # set_lxdm
 
   if [ -z "$ROOT_PASSWORD" ]
@@ -373,11 +376,17 @@ configure() {
   echo 'Creating initial user'
   create_user "$USER_NAME" "$USER_PASSWORD"
 
-  echo 'Building locate database'
-  updatedb
- 
+  sudo "$USER_NAME" -
+
+  echo 'Installing yaourt'
+  install_yaourt
+
+  echo 'Installing AUR packages'
+  install_aur_packages
+
   # rm /setup.sh
   # rm -rf /_custom_config_
+  touch /the_end
   echo 'Dont forget to remove /setup.sh and /_custom_config_'
 }
 
