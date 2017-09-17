@@ -48,21 +48,21 @@ partition_drives() {
   # 32 GB [SWAP] partition (swap flag)
   parted -s "$dev" \
       mklabel gpt \
-      mkpart fat16 "/boot" 1 512M \
-      mkpart ext4 "/" 512M 41G  \
-      mkpart linux-swap "swap" 41G 73G \
+      mkpart "/boot" fat16 1 512M \
+      mkpart "/" ext4 512M 41G  \
+      mkpart "swap" linux-swap 41G 73G \
       set 1 boot on \
-      set 1 esp on \
-      set 3 swap on
+      set 1 esp on
 
   parted -s "$user_dev" \
   		mklabel gpt \
-  		mkpart ext4 "/home" 1 500G
+  		mkpart "/home" ext4 1 500G
 }
 
 erase_drives() {
   local erase="$1"; shift
-  parted -s $erase rm all
+  local part="$1"; shift
+  parted -s $erase rm $part
 }
 
 format_filesystems() {
@@ -96,6 +96,7 @@ mount_filesystems() {
 unmount_filesystems() {
 	local swap_dev="$1"; shift
 
+  umount /mnt/home
   umount /mnt/boot
   umount /mnt
   swapoff "$swap_dev"
@@ -222,8 +223,8 @@ set_syslinux() {
 }
 
 set_sudoers() {
-	cp /_custom_config_/sudoers /etc/sudoers
-	chmod 440 /etc/sudoers
+  cp /_custom_config_/sudoers /etc/sudoers
+  chmod 440 /etc/sudoers
 }
 
 set_lxdm() {
@@ -262,11 +263,11 @@ set_root_password() {
 }
 
 create_user() {
-    local name="$1"; shift
-    local password="$1"; shift
+  local name="$1"; shift
+  local password="$1"; shift
 
-    useradd -m -s /bin/zsh -G adm,systemd-journal,wheel,games,network,video,audio,optical,floppy,storage,scanner,power,adbusers "$name"
-    echo -en "$password\n$password" | passwd "$name"
+  useradd -m -s /bin/zsh -G wheel,adbusers "$name"
+  echo -en "$password\n$password" | passwd "$name"
 }
 
 setup() {
@@ -279,10 +280,10 @@ setup() {
 	timedatectl set-ntp true
 
   echo 'Erasing disks'
-  erase_drives "$boot_dev"
-  erase_drives "$root_dev"
-  erase_drives "$swap_dev"
-  erase_drives "$home_dev"
+  erase_drives "$DRIVE" 1
+  erase_drives "$DRIVE" 2
+  erase_drives "$DRIVE" 3
+  erase_drives "$USER_DRIVE" 1
 
 	echo 'Partitioning disks'
 	partition_drives "$DRIVE" "$USER_DRIVE"
@@ -350,10 +351,10 @@ configure() {
   set_syslinux
 
   echo 'Configuring sudo'
-  set_sudoers
+  # set_sudoers
 
   echo 'Configuring slim'
-  set_lxdm
+  # set_lxdm
 
   if [ -z "$ROOT_PASSWORD" ]
   then
@@ -374,9 +375,10 @@ configure() {
 
   echo 'Building locate database'
   updatedb
-
-  rm /setup.sh
-  rm -rf /_custom_config_
+ 
+  # rm /setup.sh
+  # rm -rf /_custom_config_
+  echo 'Dont forget to remove /setup.sh and /_custom_config_'
 }
 
 set -e
