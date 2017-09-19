@@ -1,3 +1,6 @@
+pulseaudio
+electron
+npm
 xorg-xinit
 rsync
 sudo
