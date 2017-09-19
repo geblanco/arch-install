@@ -1,3 +1,6 @@
+ghostpdl
+i3lock
+imagemagick-full
 pulseaudio
 electron
 npm
