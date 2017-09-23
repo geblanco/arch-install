@@ -19,7 +19,7 @@ USER_DRIVE='/dev/sda'
 DRIVE='/dev/sdb'
 
 # Hostname of the installed machine.
-HOSTNAME='gb-arch'
+HOSTNAME='gb-mbp'
 
 # System timezone.
 TIMEZONE='Europe/Madrid'
@@ -278,6 +278,9 @@ create_user() {
 
 setup() {
 
+  local script=$1; shift
+  local cfgs=$1; shift
+
   local boot_dev="$DRIVE"1
   local root_dev="$DRIVE"2
   local swap_dev="$DRIVE"3
@@ -308,8 +311,8 @@ setup() {
   gen_fstab
 
   echo 'Chrooting into installed system to continue setup...'
-  cp /setup.sh /mnt/setup.sh
-  cp -r /deploy/cfgs /mnt/_custom_config_
+  cp $script /mnt/setup.sh
+  cp -r $cfgs /mnt/_custom_config_
 
   arch-chroot /mnt ./setup.sh chroot
 
@@ -325,7 +328,6 @@ setup() {
 }
 
 configure() {
-
 
   echo 'Installing additional packages'
   install_packages
@@ -394,7 +396,10 @@ set -e
 
 if [ "$1" == "chroot" ]
 then
-    configure
+  configure
+elif [[ "$@" -lt 1 ]]
+then
+  echo "Usage $0 <cfg_dir>"
 else
-    setup
+  setup $0 $1
 fi
