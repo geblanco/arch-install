@@ -99,7 +99,10 @@ unmount_filesystems() {
   umount /mnt/home
   umount /mnt/boot
   umount /mnt
-  swapoff "$swap_dev"
+
+  if [[ "$@" -eq 1 ]]; then
+    swapoff $1
+  fi
 }
 
 install_base() {
@@ -280,29 +283,16 @@ setup() {
 
   local script=$1; shift
   local cfgs=$1; shift
-
-  local boot_dev="$DRIVE"1
-  local root_dev="$DRIVE"2
-  local swap_dev="$DRIVE"3
-  local home_dev="$USER_DRIVE"1
+  local disker=$1; shift
 
   echo 'Setting time'
   timedatectl set-ntp true
 
-  echo 'Erasing disks'
-  erase_drives "$DRIVE" 1
-  erase_drives "$DRIVE" 2
-  erase_drives "$DRIVE" 3
-  erase_drives "$USER_DRIVE" 1
-
-  echo 'Partitioning disks'
-  partition_drives "$DRIVE" "$USER_DRIVE"
-
-  echo 'Formatting filesystems'
-  format_filesystems "$boot_dev" "$root_dev" "$swap_dev" "$home_dev"
-
-  echo 'Mounting filesystems'
-  mount_filesystems "$boot_dev" "$root_dev" "$swap_dev" "$home_dev"
+  ./disker
+  if [[ $? -ne 0 ]]; then
+    echo 'ERROR: Something failed inside the disk utility.'
+    exit
+  fi
 
   echo 'Installing base system'
   install_base
@@ -397,9 +387,9 @@ set -e
 if [ "$1" == "chroot" ]
 then
   configure
-elif [[ "$@" -lt 1 ]]
+elif [[ "$@" -ne 2 ]]
 then
-  echo "Usage $0 <cfg_dir>"
+  echo "Usage: $0 <cfg_dir> <disk prepare script>"
 else
-  setup $0 $1
+  setup $0 $1 $2
 fi
