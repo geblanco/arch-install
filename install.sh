@@ -387,7 +387,7 @@ set -e
 if [ "$1" == "chroot" ]
 then
   configure
-elif [[ "$@" -ne 2 ]]
+elif [ "$#" -ne 2 ]
 then
   echo "Usage: $0 <cfg_dir> <disk prepare script>"
 else
