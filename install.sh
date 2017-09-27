@@ -288,7 +288,7 @@ setup() {
   echo 'Setting time'
   timedatectl set-ntp true
 
-  ./disker
+  ./$disker
   if [[ $? -ne 0 ]]; then
     echo 'ERROR: Something failed inside the disk utility.'
     exit
