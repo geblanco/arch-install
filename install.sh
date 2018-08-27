@@ -4,26 +4,12 @@
 
 ## Minimum script to install arch linux
 
-## Setup disks
-## 	Current disks:
-##		/dev/sda: 1TB HHD
-## 		  | gpt partition table
-## 			|-- 500GB /home
-## 		/dev/sdb: 256 GB SSD
-## 		  | gpt partition table
-## 			|-- 512MB /boot (boot, esp)
-## 			|-- 40GB /
-## 			|-- 32GB SWAP (swap)
-
-USER_DRIVE='/dev/sda'
-DRIVE='/dev/sdb'
-
 # Hostname of the installed machine.
 HOSTNAME='gb-mbp'
 
 # System timezone.
 TIMEZONE='Europe/Madrid'
-KEYMAP='us'
+KEYMAP='uk'
 
 ROOT_PASSWORD=''
 USER_NAME='gb'
@@ -39,63 +25,7 @@ VIDEO_DRIVER="i915"
 # For generic stuff
 #VIDEO_DRIVER="vesa"
 
-partition_drives() {
-  local dev="$1"; shift
-  local user_dev="$1"; shift
-
-  # 512 MB /boot partition (boot, esp flags)
-  # 40 GB /root partition
-  # 32 GB [SWAP] partition (swap flag)
-  parted -s "$dev" \
-      mklabel gpt \
-      mkpart "/boot" fat16 1 512M \
-      mkpart "/" ext4 512M 41G  \
-      mkpart "swap" linux-swap 41G 73G \
-      set 1 boot on \
-      set 1 esp on
-
-  parted -s "$user_dev" \
-  		mklabel gpt \
-  		mkpart "/home" ext4 1 500G
-}
-
-erase_drives() {
-  local erase="$1"; shift
-  local part="$1"; shift
-  parted -s $erase rm $part
-}
-
-format_filesystems() {
-	local boot_dev="$1"; shift
-	local root_dev="$1"; shift
-	local swap_dev="$1"; shift
-	local home_dev="$1"; shift
-
-	mkfs.fat -F 16 "$boot_dev"
-	mkfs.ext4 -L root "$root_dev"
-	mkswap "$swap_dev"
-
-	mkfs.ext4 -L home "$home_dev"
-}
-
-mount_filesystems() {
-  local boot_dev="$1"; shift
-	local root_dev="$1"; shift
-	local swap_dev="$1"; shift
-  local home_dev="$1"; shift
-
-  mount "$root_dev" /mnt
-  mkdir /mnt/boot
-  mount "$boot_dev" /mnt/boot
-  swapon "$swap_dev"
-
-  mkdir /mnt/home
-  mount "$home_dev" /mnt/home
-}
-
 unmount_filesystems() {
-	local swap_dev="$1"; shift
-
   umount /mnt/home
   umount /mnt/boot
   umount /mnt
@@ -105,19 +35,22 @@ unmount_filesystems() {
   fi
 }
 
+gen_fstab() {
+
+	genfstab -U /mnt >> /mnt/etc/fstab
+}
+
 install_base() {
   # Default list has all mirrors
   # ToDo =: Install reflector
   # echo 'Server = http://mirrors.kernel.org/archlinux/$repo/os/$arch'
   # >> /etc/pacman.d/mirrorlist
 
+  # if using another bootloader different from systemd,
+  # this is the place to install it, pass it to pacstrap
   pacstrap /mnt base base-devel
-  pacstrap /mnt syslinux
-}
-
-gen_fstab() {
-
-	genfstab -U /mnt >> /mnt/etc/fstab
+  # not needed, using systemd (which comes in base-devel)
+  # pacstrap /mnt syslinux
 }
 
 install_yaourt(){
@@ -170,7 +103,6 @@ install_aur_packages() {
   cd _custom_config_
   # install software not in official repos
   local packages=$(cat software_not_installed.txt | tr "\n" " ")
-	# android, install by AUR
 	yaourt -S --noconfirm $packages
   cd ..
 }
@@ -211,7 +143,9 @@ set_locale() {
 }
 
 set_keymap() {
-  echo "KEYMAP=$KEYMAP" > /etc/vconsole.conf
+  local map="$1"; shift
+
+  echo "KEYMAP=$map" > /etc/vconsole.conf
 }
 
 set_hosts() {
@@ -227,24 +161,30 @@ EOF
 }
 
 set_modules_load() {
+
   echo 'microcode' > /etc/modules-load.d/intel-ucode.conf
 }
 
-set_systemd() {
+set_bootloader() {
+  # if using a bootloader different from systemd this is the place to invoke it and copy it's config files
   bootctl --path=/boot install
   cp /_custom_config_/loader.conf /boot/loader/loader.conf
   cp /_custom_config_/arch.conf /boot/loader/entries/arch.conf
 }
 
-set_lxdm() {
-	cp /_custom_config_/lxdm.conf /etc/lxdm/lxdm.conf
+set_root_password() {
+  local password="$1"; shift
+
+  echo -en "$password\n$password" | passwd
 }
 
 get_input(){
+  INPUT=""
+  local prompt="$1"; shift
   local INPUT1="foo"
   local INPUT2="bar"
-  local ph1="Enter a passphrase to encrypt the disk:"
-  local ph2="Re-enter passphrase:"
+  local ph1="Enter a password for '$prompt' user: "
+  local ph2="Re-enter password for '$prompt' user: "
   while [ $INPUT1 != $INPUT2 ]; do
     echo -n $ph1
     stty -echo
@@ -263,12 +203,6 @@ get_input(){
       INPUT=$INPUT1
     fi
   done
-}
-
-set_root_password() {
-  local password="$1"; shift
-
-  echo -en "$password\n$password" | passwd
 }
 
 create_user() {
@@ -304,7 +238,8 @@ setup() {
   cp $script /mnt/setup.sh
   cp -r $cfgs /mnt/_custom_config_
 
-  arch-chroot /mnt ./setup.sh chroot
+  # the chrooted execution should setup the rest and create /mnt/the_end file
+  arch-chroot /mnt ./setup.sh "chroot"
 
   if [ ! -f /mnt/the_end ]
   then
@@ -312,7 +247,7 @@ setup() {
     echo 'Make sure you unmount everything before you try to run this script again.'
   else
     echo 'Unmounting filesystems'
-    unmount_filesystems "$swap_dev"
+    unmount_filesystems
     echo 'Done! Reboot system.'
   fi
 }
@@ -335,7 +270,7 @@ configure() {
   set_locale
 
   echo 'Setting console keymap'
-  set_keymap
+  set_keymap "$KEYMAP"
 
   echo 'Setting hosts file'
 	set_hosts "$HOSTNAME"
@@ -346,22 +281,20 @@ configure() {
   mkinitcpio -p linux
 
   echo 'Configuring bootloader'
-  set_systemd
-
-  # echo 'Configuring lxdm'
-  # set_lxdm
+  set_bootloader
 
   if [ -z "$ROOT_PASSWORD" ]
   then
-    get_input
+    get_input "root"
     ROOT_PASSWORD=$INPUT
   fi
+
   echo 'Setting root password'
   set_root_password "$ROOT_PASSWORD"
 
   if [ -z "$USER_PASSWORD" ]
   then
-    get_input
+    get_input "$USER_NAME"
     USER_PASSWORD=$INPUT
   fi
 
