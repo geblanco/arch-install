@@ -5,7 +5,7 @@
 ## Minimum script to install arch linux
 
 # Hostname of the installed machine.
-HOSTNAME='gb-mbp'
+HOSTNAME='gb'
 
 # System timezone.
 TIMEZONE='Europe/Madrid'
@@ -13,6 +13,7 @@ KEYMAP='uk'
 
 ROOT_PASSWORD=''
 USER_NAME='gb'
+USER_SHELL='zsh'
 USER_PASSWORD=''
 
 # Choose your video driver
@@ -37,7 +38,7 @@ unmount_filesystems() {
 
 gen_fstab() {
 
-	genfstab -U /mnt >> /mnt/etc/fstab
+  genfstab -U /mnt >> /mnt/etc/fstab
 }
 
 install_base() {
@@ -59,17 +60,19 @@ install_yaourt(){
   if [[ -d __build ]]; then
     rm -rf __build
   fi
-  mkdir __build
-  cd __build
-  git clone https://aur.archlinux.org/package-query.git
-  cd package-query/
-  makepkg -si
-  cd ..
-  git clone https://aur.archlinux.org/yaourt.git
-  cd yaourt/
-  makepkg -si
-  cd ../..
-  rm -rf __build
+  sudo -i -u $USER_NAME bash << EOF
+mkdir __build
+cd __build
+git clone https://aur.archlinux.org/package-query.git
+cd package-query/
+makepkg -si --noconfirm
+cd ..
+git clone https://aur.archlinux.org/yaourt.git
+cd yaourt/
+makepkg -si --noconfirm
+cd ../..
+rm -rf __build
+EOF
 }
 
 install_packages() {
@@ -102,14 +105,15 @@ install_packages() {
 install_aur_packages() {
   cd _custom_config_
   # install software not in official repos
+  yaourt -Suuya --noconfirm
   local packages=$(cat software_not_installed.txt | tr "\n" " ")
-	yaourt -S --noconfirm $packages
+  yaourt -S --noconfirm $packages
   cd ..
 }
 
 clean_packages() {
 
-	yes | pacman -Scc
+  yes | pacman -Scc
 }
 
 set_hostname() {
@@ -126,19 +130,19 @@ set_timezone() {
 }
 
 set_locale() {
-  echo "LC_MEASUREMENT=es_ES.UTF-8" >> /etc/locale.conf
-	echo "LC_NUMERIC=es_ES.UTF-8" >> /etc/locale.conf
-	echo "LC_PAPER=es_ES.UTF-8" >> /etc/locale.conf
-	echo "LC_IDENTIFICATION=es_ES.UTF-8" >> /etc/locale.conf
-	echo "LC_MONETARY=es_ES.UTF-8" >> /etc/locale.conf
-	echo "LC_TIME=es_ES.UTF-8" >> /etc/locale.conf
-	echo "LC_ADDRESS=es_ES.UTF-8" >> /etc/locale.conf
-	echo "LC_NAME=es_ES.UTF-8" >> /etc/locale.conf
-	echo "LANG=en_US.UTF-8" >> /etc/locale.conf
-	echo "LC_TELEPHONE=es_ES.UTF-8" >> /etc/locale.conf
+  echo "LC_MEASUREMENT=en_IE.UTF-8" >> /etc/locale.conf
+  echo "LC_NUMERIC=en_IE.UTF-8" >> /etc/locale.conf
+  echo "LC_PAPER=en_IE.UTF-8" >> /etc/locale.conf
+  echo "LC_IDENTIFICATION=en_IE.UTF-8" >> /etc/locale.conf
+  echo "LC_MONETARY=en_IE.UTF-8" >> /etc/locale.conf
+  echo "LC_TIME=en_IE.UTF-8" >> /etc/locale.conf
+  echo "LC_ADDRESS=en_IE.UTF-8" >> /etc/locale.conf
+  echo "LC_NAME=en_IE.UTF-8" >> /etc/locale.conf
+  echo "LANG=en_US.UTF-8" >> /etc/locale.conf
+  echo "LC_TELEPHONE=en_IE.UTF-8" >> /etc/locale.conf
 
-	echo "en_US.UTF-8 UTF-8  " >> /etc/locale.gen
-	echo "es_ES.UTF-8 UTF-8 " >> /etc/locale.gen
+  echo "en_US.UTF-8 UTF-8  " >> /etc/locale.gen
+  echo "en_IE.UTF-8 UTF-8 " >> /etc/locale.gen
   locale-gen
 }
 
@@ -209,8 +213,12 @@ create_user() {
   local name="$1"; shift
   local password="$1"; shift
 
-  useradd -m -s /bin/zsh -G wheel,adbusers "$name"
+  mkdir -p /etc/skel/{Desktop,Documents,Downloads,Music,Pictures,Public,Videos}
+  useradd -m -s $(which $USER_SHELL) -G wheel "$name"
   echo -en "$password\n$password" | passwd "$name"
+  # enable wheel as sudo
+  sed 's/# %wheel ALL=(ALL) ALL/%wheel ALL=(ALL) ALL/g' /etc/sudoers > ./sudoers
+  mv ./sudoers /etc/sudoers
 }
 
 setup() {
@@ -260,7 +268,7 @@ configure() {
   echo 'Clearing package tarballs'
   clean_packages
   
-	echo 'Setting hostname'
+  echo 'Setting hostname'
   set_hostname "$HOSTNAME"
 
   echo 'Setting timezone'
@@ -300,8 +308,6 @@ configure() {
 
   echo 'Creating initial user'
   create_user "$USER_NAME" "$USER_PASSWORD"
-
-  sudo "$USER_NAME" -
 
   echo 'Installing yaourt'
   install_yaourt
