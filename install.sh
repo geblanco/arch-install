@@ -9,7 +9,7 @@ HOSTNAME='gb'
 
 # System timezone.
 TIMEZONE='Europe/Madrid'
-KEYMAP='uk'
+KEYMAP='es'
 
 ROOT_PASSWORD=''
 USER_NAME='gb'
@@ -56,19 +56,15 @@ install_base() {
 
 install_yaourt(){
   echo 'Installing needed packages...'
-  pacman -S --needed --noconfirm git wget yajl
+  pacman -S --needed --noconfirm git wget
   if [[ -d __build ]]; then
     rm -rf __build
   fi
   sudo -i -u $USER_NAME bash << EOF
 mkdir __build
 cd __build
-git clone https://aur.archlinux.org/package-query.git
-cd package-query/
-makepkg -si --noconfirm
-cd ..
-git clone https://aur.archlinux.org/yaourt.git
-cd yaourt/
+git clone https://aur.archlinux.org/yay.git
+cd yay
 makepkg -si --noconfirm
 cd ../..
 rm -rf __build
@@ -130,19 +126,13 @@ set_timezone() {
 }
 
 set_locale() {
-  echo "LC_MEASUREMENT=en_IE.UTF-8" >> /etc/locale.conf
-  echo "LC_NUMERIC=en_IE.UTF-8" >> /etc/locale.conf
-  echo "LC_PAPER=en_IE.UTF-8" >> /etc/locale.conf
-  echo "LC_IDENTIFICATION=en_IE.UTF-8" >> /etc/locale.conf
-  echo "LC_MONETARY=en_IE.UTF-8" >> /etc/locale.conf
-  echo "LC_TIME=en_IE.UTF-8" >> /etc/locale.conf
-  echo "LC_ADDRESS=en_IE.UTF-8" >> /etc/locale.conf
-  echo "LC_NAME=en_IE.UTF-8" >> /etc/locale.conf
-  echo "LANG=en_US.UTF-8" >> /etc/locale.conf
-  echo "LC_TELEPHONE=en_IE.UTF-8" >> /etc/locale.conf
+  echo "LANG=en_GB.UTF-8" >> /etc/locale.conf
+  echo "LANGUAGE=en_GB.UTF-8" >> /etc/locale.conf
+  echo "LC_CTYPE=en_GB.UTF-8" >> /etc/locale.conf
 
-  echo "en_US.UTF-8 UTF-8  " >> /etc/locale.gen
-  echo "en_IE.UTF-8 UTF-8 " >> /etc/locale.gen
+  echo "en_US.UTF-8 UTF-8 " >> /etc/locale.gen
+  echo "en_GB.UTF-8 UTF-8 " >> /etc/locale.gen
+  echo "es_ES.UTF-8 UTF-8 " >> /etc/locale.gen
   locale-gen
 }
 
@@ -156,11 +146,8 @@ set_hosts() {
 	local hostname="$1"; shift
 
 	cat > /etc/hosts <<EOF
-127.0.0.1	localhost
-127.0.1.1	$hostname
-::1	localhost ip6-localhost ip6-loopback
-ff02::1 ip6-allnodes
-ff02::2 ip6-allrouters
+127.0.0.1 ${hostname}.lsi.uned.es localhost
+::1 ${hostname}.lsi.uned.es ${hostname} localhost
 EOF
 }
 
@@ -171,9 +158,11 @@ set_modules_load() {
 
 set_bootloader() {
   # if using a bootloader different from systemd this is the place to invoke it and copy it's config files
-  bootctl --path=/boot install
-  cp /_custom_config_/loader.conf /boot/loader/loader.conf
-  cp /_custom_config_/arch.conf /boot/loader/entries/arch.conf
+  # bootctl --path=/boot install
+  # cp /_custom_config_/loader.conf /boot/loader/loader.conf
+  # cp /_custom_config_/arch.conf /boot/loader/entries/arch.conf
+  grub-install --target=i386-pc /dev/sda
+  grub-mkconfig -o /boot/grub/grub.cfg
 }
 
 set_root_password() {
