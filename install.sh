@@ -27,9 +27,7 @@ VIDEO_DRIVER="i915"
 #VIDEO_DRIVER="vesa"
 
 unmount_filesystems() {
-  umount /mnt/home
-  umount /mnt/boot
-  umount /mnt
+  umount -R /mnt
 
   if [[ "$@" -eq 1 ]]; then
     swapoff $1
@@ -49,7 +47,7 @@ install_base() {
 
   # if using another bootloader different from systemd,
   # this is the place to install it, pass it to pacstrap
-  pacstrap /mnt base base-devel
+  pacstrap /mnt base base-devel linux linux-firmware
   # not needed, using systemd (which comes in base-devel)
   # pacstrap /mnt syslinux
 }
@@ -101,9 +99,9 @@ install_packages() {
 install_aur_packages() {
   cd _custom_config_
   # install software not in official repos
-  yaourt -Suuya --noconfirm
+  yay -Suuya --noconfirm
   local packages=$(cat software_not_installed.txt | tr "\n" " ")
-  yaourt -S --noconfirm $packages
+  yay -S --sudoloop --save --noconfirm $packages
   cd ..
 }
 
@@ -158,11 +156,11 @@ set_modules_load() {
 
 set_bootloader() {
   # if using a bootloader different from systemd this is the place to invoke it and copy it's config files
-  # bootctl --path=/boot install
-  # cp /_custom_config_/loader.conf /boot/loader/loader.conf
-  # cp /_custom_config_/arch.conf /boot/loader/entries/arch.conf
-  grub-install --target=i386-pc /dev/sda
-  grub-mkconfig -o /boot/grub/grub.cfg
+  bootctl --path=/boot install
+  cp /_custom_config_/loader.conf /boot/loader/loader.conf
+  cp /_custom_config_/arch.conf /boot/loader/entries/arch.conf
+  # grub-install --target=i386-pc /dev/sda
+  # grub-mkconfig -o /boot/grub/grub.cfg
 }
 
 set_root_password() {
@@ -202,7 +200,7 @@ create_user() {
   local name="$1"; shift
   local password="$1"; shift
 
-  mkdir -p /etc/skel/{Desktop,Documents,Downloads,Music,Pictures,Public,Videos}
+  mkdir -p /etc/skel/{Desktop,Documents,Downloads}
   useradd -m -s $(which $USER_SHELL) -G wheel "$name"
   echo -en "$password\n$password" | passwd "$name"
   # enable wheel as sudo
@@ -241,9 +239,10 @@ setup() {
   if [ ! -f /mnt/the_end ]
   then
     echo 'ERROR: Something failed inside the chroot, not unmounting filesystems so you can investigate.'
-    echo 'Make sure you unmount everything before you try to run this script again.'
+    echo 'Make sure you unmount everything before you try to run this script again (umount -R /mnt)'
   else
     echo 'Unmounting filesystems'
+    rm /mnt/the_end
     unmount_filesystems
     echo 'Done! Reboot system.'
   fi

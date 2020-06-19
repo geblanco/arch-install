@@ -4,4 +4,4 @@
 
 soft=$(pacman -Q | awk '{print $1}')
 echo "Found $(echo $soft | tr ' ' '\n' | wc -l) packages"
-echo $soft | tr ' ' '\n' > software.txt
+echo $soft | tr ' ' '\n' > cfgs/software.txt
