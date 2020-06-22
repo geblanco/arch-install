@@ -52,7 +52,7 @@ install_base() {
   # pacstrap /mnt syslinux
 }
 
-install_yaourt(){
+install_package_manager(){
   echo 'Installing needed packages...'
   pacman -S --needed --noconfirm git wget
   if [[ -d __build ]]; then
@@ -297,8 +297,8 @@ configure() {
   echo 'Creating initial user'
   create_user "$USER_NAME" "$USER_PASSWORD"
 
-  echo 'Installing yaourt'
-  install_yaourt
+  echo 'Installing package manager'
+  install_package_manager
 
   echo 'Installing AUR packages'
   install_aur_packages
