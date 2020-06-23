@@ -101,10 +101,10 @@ work() {
   local DATA_DRIVE='/dev/sda'
   local DATA_DRIVE_NAME='data'
 
-  local boot_dev="${DRIVE}"1
-  local root_dev="${DRIVE}"2
-  local swap_dev="${DRIVE}"3
-  local home_dev="${DRIVE}"4
+  local boot_dev="${DRIVE}p1"
+  local root_dev="${DRIVE}p2"
+  local swap_dev="${DRIVE}p3"
+  local home_dev="${DRIVE}p4"
 
   echo 'Partition drive'
   partition_drives "$DRIVE"
