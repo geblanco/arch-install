@@ -23,7 +23,7 @@ partition_drives() {
       mkpart "/boot" fat32 1 512M \
       mkpart "/" ext4 512M 128G  \
       mkpart "swap" linux-swap 128G 256G \
-      mkpart "/home" ext4 256G 512G \
+      mkpart "/home" ext4 256G 100% \
       set 1 bios_grub on \
       set 1 boot on
 }
@@ -97,14 +97,14 @@ erase_drives() {
 
 work() {
 
-  local DRIVE='/dev/sda'
-  local DATA_DRIVE='/dev/sdb'
+  local DRIVE='/dev/nvme0n1'
+  local DATA_DRIVE='/dev/sda'
   local DATA_DRIVE_NAME='data'
 
-  local boot_dev="${DRIVE}"1
-  local root_dev="${DRIVE}"2
-  local swap_dev="${DRIVE}"3
-  local home_dev="${DRIVE}"4
+  local boot_dev="${DRIVE}p1"
+  local root_dev="${DRIVE}p2"
+  local swap_dev="${DRIVE}p3"
+  local home_dev="${DRIVE}p4"
 
   echo 'Partition drive'
   partition_drives "$DRIVE"
