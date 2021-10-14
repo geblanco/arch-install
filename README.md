@@ -1,6 +1,8 @@
 # Arch Install from a script [GPU SERVER VERSION]
 
-Before installing, get the correct info from your drives with (`sudo fdisk -l`) and correct `/dev/sdX` drives in disk.sh script.
+Before installing
+- get the correct info from your drives with (`sudo fdisk -l`) and correct `/dev/sdX` drives in disk.sh script.
+- change the necessary variables in install.sh script (HOSTNAME, HOSTDOMAIN, USER_NAME, USER_PASSWORD)
 
 ## Software
 
