@@ -6,6 +6,7 @@
 
 # Hostname of the installed machine.
 HOSTNAME='gb'
+HOSTDOMAIN=''
 
 # System timezone.
 TIMEZONE='Europe/Madrid'
@@ -47,7 +48,7 @@ install_base() {
 
   # if using another bootloader different from systemd,
   # this is the place to install it, pass it to pacstrap
-  pacstrap /mnt base base-devel linux linux-firmware
+  pacstrap /mnt base base-devel linux-lts linux-firmware
   # not needed, using systemd (which comes in base-devel)
   # pacstrap /mnt syslinux
 }
@@ -142,10 +143,11 @@ set_keymap() {
 
 set_hosts() {
 	local hostname="$1"; shift
+  local hostdomain="${1:-''}"
 
 	cat > /etc/hosts <<EOF
-127.0.0.1 ${hostname}.lsi.uned.es localhost
-::1 ${hostname}.lsi.uned.es ${hostname} localhost
+127.0.0.1 ${hostname}${hostdomain} localhost
+::1 ${hostname}${hostdomain} ${hostname} localhost
 EOF
 }
 
@@ -269,7 +271,7 @@ configure() {
   set_keymap "$KEYMAP"
 
   echo 'Setting hosts file'
-	set_hosts "$HOSTNAME"
+	set_hosts "$HOSTNAME" "$HOSTDOMAIN"
 
 	set_modules_load
 
