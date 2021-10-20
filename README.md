@@ -42,3 +42,8 @@ install version 450 of the drivers, we will install from a local PKGBUILD found
 in pkgs/nvidia-utils
 
 To setup everything, launch `./setup_cuda.sh`
+
+## Notes
+Updating CUDA packages may render the GPUs useless due to version mismatches.
+To avoid this, add: `IgnorePkg = python cuda nvidia-utils opencl-nvidia
+nvidia-dkms` to your pacman conf file (`/etc/pacman.conf`)
